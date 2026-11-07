@@ -47,6 +47,19 @@ data class SpoolChanges(
     }
 }
 
+/** Spool writes and history, as screens use them; lets ViewModels be tested with a fake. */
+interface SpoolActions {
+    suspend fun open(uuid: String, note: String? = null): Result<Unit>
+    suspend fun useUp(uuid: String, note: String? = null): Result<Unit>
+    suspend fun add(
+        productId: Long, onSpool: Boolean, isRefill: Boolean, purchasedAt: LocalDate?,
+        price: BigDecimal?, location: String?, notes: String?,
+    ): Result<String>
+    suspend fun update(uuid: String, changes: SpoolChanges): Result<Unit>
+    suspend fun remove(uuid: String, note: String?): Result<Unit>
+    suspend fun events(uuid: String, page: Int): Result<Page<SpoolEventDto>>
+}
+
 /** Writes go straight to the API; on success the returned spool is stored in Room (spec section 6). */
 @Singleton
 class SpoolRepository @Inject constructor(
@@ -54,14 +67,14 @@ class SpoolRepository @Inject constructor(
     private val spoolDao: SpoolDao,
     private val productDao: ProductDao,
     private val session: SessionStore,
-) {
-    suspend fun open(uuid: String, note: String? = null): Result<Unit> =
+) : SpoolActions {
+    override suspend fun open(uuid: String, note: String?): Result<Unit> =
         write(uuid) { apiProvider.api().openSpool(uuid, NoteRequest(note)).data }.map { }
 
-    suspend fun useUp(uuid: String, note: String? = null): Result<Unit> =
+    override suspend fun useUp(uuid: String, note: String?): Result<Unit> =
         write(uuid) { apiProvider.api().useUpSpool(uuid, NoteRequest(note)).data }.map { }
 
-    suspend fun add(
+    override suspend fun add(
         productId: Long,
         onSpool: Boolean,
         isRefill: Boolean,
@@ -83,10 +96,10 @@ class SpoolRepository @Inject constructor(
         ).data
     }.map { it.uuid }
 
-    suspend fun update(uuid: String, changes: SpoolChanges): Result<Unit> =
+    override suspend fun update(uuid: String, changes: SpoolChanges): Result<Unit> =
         write(uuid) { apiProvider.api().patchSpool(uuid, changes.toJson()).data }.map { }
 
-    suspend fun remove(uuid: String, note: String?): Result<Unit> {
+    override suspend fun remove(uuid: String, note: String?): Result<Unit> {
         val result = apiCall {
             val response = apiProvider.api().deleteSpool(uuid, NoteRequest(note))
             if (!response.isSuccessful) throw HttpException(response)
@@ -94,7 +107,7 @@ class SpoolRepository @Inject constructor(
         return handle(uuid, result).onSuccess { spoolDao.deleteByUuids(listOf(uuid)) }
     }
 
-    suspend fun events(uuid: String, page: Int): Result<Page<SpoolEventDto>> =
+    override suspend fun events(uuid: String, page: Int): Result<Page<SpoolEventDto>> =
         apiCall { apiProvider.api().events(uuid, page) }
 
     suspend fun refreshAbilities(): Result<Unit> =

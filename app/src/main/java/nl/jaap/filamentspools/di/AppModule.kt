@@ -17,6 +17,8 @@ import kotlinx.coroutines.SupervisorJob
 import nl.jaap.filamentspools.data.AppScope
 import nl.jaap.filamentspools.data.Pairer
 import nl.jaap.filamentspools.data.PairingRepository
+import nl.jaap.filamentspools.data.SpoolActions
+import nl.jaap.filamentspools.data.SpoolRepository
 import nl.jaap.filamentspools.data.SyncRepository
 import nl.jaap.filamentspools.data.Syncer
 import nl.jaap.filamentspools.data.db.AppDatabase
@@ -72,4 +74,5 @@ abstract class BindingsModule {
     @Binds abstract fun tokenCipher(impl: KeystoreTokenCipher): TokenCipher
     @Binds abstract fun pairer(impl: PairingRepository): Pairer
     @Binds abstract fun syncer(impl: SyncRepository): Syncer
+    @Binds abstract fun spoolActions(impl: SpoolRepository): SpoolActions
 }

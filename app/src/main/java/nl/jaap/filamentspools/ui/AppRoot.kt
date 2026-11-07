@@ -29,6 +29,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import nl.jaap.filamentspools.ui.pairing.PairingScreen
+import nl.jaap.filamentspools.ui.printer.PrinterScreen
 import nl.jaap.filamentspools.ui.settings.SettingsScreen
 
 object Routes {
@@ -97,7 +98,7 @@ private fun NavHostController.switchTab(route: String) = navigate(route) {
 }
 
 // Screens wired in later tasks.
-@Composable private fun PrinterRoute(nav: NavHostController) = Text("Printer")
+@Composable private fun PrinterRoute(nav: NavHostController) = PrinterScreen(onOpenSpool = { nav.navigate(Routes.spool(it)) })
 @Composable private fun CatalogRoute(nav: NavHostController) = Text("Catalog")
 @Composable private fun ProductRoute(nav: NavHostController) = Text("Product")
 @Composable private fun SpoolRoute(nav: NavHostController) = Text("Spool")
