@@ -1,5 +1,6 @@
 package nl.jaap.filamentspools.data
 
+import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -76,6 +77,7 @@ class SyncRepository @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            Log.w(TAG, "Sync failed unexpectedly", e)
             Result.failure(e)
         } finally {
             writes.forgetUpTo(mark)
@@ -139,6 +141,7 @@ class SyncRepository @Inject constructor(
             ?: runCatching { Instant.parse(value) }.getOrNull()
 
     private companion object {
+        const val TAG = "Sync"
         const val PER_PAGE = 100
         /** Safety stop against a server that never reports a last page. */
         const val MAX_PAGES = 1000

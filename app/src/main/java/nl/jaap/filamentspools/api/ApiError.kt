@@ -1,5 +1,6 @@
 package nl.jaap.filamentspools.api
 
+import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonArray
@@ -33,9 +34,11 @@ suspend fun <T> apiCall(block: suspend () -> T): Result<T> =
     } catch (e: HttpException) {
         Result.failure(mapHttp(e))
     } catch (e: SerializationException) {
+        Log.w("Api", "Response could not be parsed", e)
         Result.failure(ApiError.Http(-1))
     } catch (e: IllegalArgumentException) {
         // kotlinx.serialization reports missing fields as IllegalArgumentException subclasses.
+        Log.w("Api", "Response could not be parsed", e)
         Result.failure(ApiError.Http(-1))
     } catch (e: IOException) {
         Result.failure(ApiError.Network(e))
