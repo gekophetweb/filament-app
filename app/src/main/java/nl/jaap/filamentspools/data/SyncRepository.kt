@@ -31,6 +31,12 @@ annotation class AppScope
 
 data class SyncState(val running: Boolean = false, val lastError: ApiError? = null)
 
+/** What screens need from sync; lets ViewModels be tested with a fake. */
+interface Syncer {
+    val state: StateFlow<SyncState>
+    suspend fun sync(): Result<Unit>
+}
+
 /**
  * Pulls spools and catalog into Room (spec section 6).
  * Pages are requested by number, never by following `links.next`, whose host may be unreachable.
@@ -43,15 +49,15 @@ class SyncRepository @Inject constructor(
     private val session: SessionStore,
     @AppScope private val scope: CoroutineScope,
     private val clock: Clock,
-) {
+) : Syncer {
     private val _state = MutableStateFlow(SyncState())
-    val state: StateFlow<SyncState> = _state
+    override val state: StateFlow<SyncState> = _state
 
     private val lock = Mutex()
     private var inFlight: Deferred<Result<Unit>>? = null
 
     /** Syncs spools, then catalog. A call while a sync runs joins it. */
-    suspend fun sync(): Result<Unit> {
+    override suspend fun sync(): Result<Unit> {
         val job = lock.withLock {
             inFlight?.takeIf { it.isActive } ?: scope.async { runSync() }.also { inFlight = it }
         }
