@@ -33,6 +33,7 @@ import nl.jaap.filamentspools.ui.catalog.ProductScreen
 import nl.jaap.filamentspools.ui.pairing.PairingScreen
 import nl.jaap.filamentspools.ui.printer.PrinterScreen
 import nl.jaap.filamentspools.ui.settings.SettingsScreen
+import nl.jaap.filamentspools.ui.spool.SpoolScreen
 
 object Routes {
     const val PRINTER = "printer"
@@ -99,9 +100,9 @@ private fun NavHostController.switchTab(route: String) = navigate(route) {
     restoreState = true
 }
 
-// Screens wired in later tasks.
+// Route adapters: screens get navigation callbacks, not the controller.
 @Composable private fun PrinterRoute(nav: NavHostController) = PrinterScreen(onOpenSpool = { nav.navigate(Routes.spool(it)) })
 @Composable private fun CatalogRoute(nav: NavHostController) = CatalogScreen(onOpenProduct = { nav.navigate(Routes.product(it)) })
 @Composable private fun ProductRoute(nav: NavHostController) =
     ProductScreen(onBack = { nav.popBackStack() }, onOpenSpool = { nav.navigate(Routes.spool(it)) })
-@Composable private fun SpoolRoute(nav: NavHostController) = Text("Spool")
+@Composable private fun SpoolRoute(nav: NavHostController) = SpoolScreen(onBack = { nav.popBackStack() })
