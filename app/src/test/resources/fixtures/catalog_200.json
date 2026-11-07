@@ -1,0 +1,39 @@
+{
+  "data": [
+    {
+      "id": 1,
+      "brand": "Bambu Lab",
+      "material": "PLA",
+      "line": "PLA Basic",
+      "article_name": "Jade White",
+      "article_number": "10100",
+      "color_hex": "#FFFFFF",
+      "color_hex_2": null,
+      "color_family": "white",
+      "diameter": 1.75,
+      "nominal_weight": 1000,
+      "has_refill": true,
+      "product_url": null,
+      "buy_url": "https://eu.store.bambulab.com/search?q=10100",
+      "boxed_count": 2,
+      "on_spool_count": 1,
+      "owned_count": 3,
+      "updated_at": "2026-11-06T10:00:00+00:00"
+    }
+  ],
+  "links": {
+    "first": "http://localhost:8000/api/v1/catalog?page=1",
+    "last": "http://localhost:8000/api/v1/catalog?page=1",
+    "prev": null,
+    "next": null
+  },
+  "meta": {
+    "current_page": 1,
+    "from": 1,
+    "last_page": 1,
+    "path": "http://localhost:8000/api/v1/catalog",
+    "per_page": 50,
+    "to": 1,
+    "total": 1
+  }
+}
