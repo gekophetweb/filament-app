@@ -63,6 +63,29 @@ class PairingRepositoryTest {
     }
 
     @Test
+    fun existingTokenSignsInViaMe() = runBlocking {
+        routes.json("GET /api/v1/me", fixture("me_200.json"))
+
+        assertEquals(Result.success(Unit), repo.useToken(typedUrl, " 1|abc "))
+
+        val me = routes.requests.first { it.path == "/api/v1/me" }
+        assertEquals("Bearer 1|abc", me.getHeader("Authorization"))
+        val s = session.current.value!!
+        assertEquals("http://$typedUrl/api/v1/", s.baseUrl)
+        assertEquals("1|abc", s.token)
+        assertEquals(setOf("spools:read", "spools:write"), s.abilities)
+        assertEquals("Alex", s.userName)
+    }
+
+    @Test
+    fun badTokenLeavesSessionEmptyAndDoesNotSignOut() = runBlocking {
+        routes.json("GET /api/v1/me", """{"message":"Unauthenticated."}""", code = 401)
+        assertEquals(ApiError.Unauthorized, repo.useToken(typedUrl, "nope").exceptionOrNull())
+        assertNull(session.current.value)
+        assertEquals(emptyList<Any>(), session.signOuts)
+    }
+
+    @Test
     fun badCodeLeavesSessionEmpty() = runBlocking {
         routes.json("POST /api/v1/pair", """{"message":"Unauthenticated."}""", code = 401)
         assertEquals(ApiError.Unauthorized, repo.pair(typedUrl, "BAD", "Pixel 8").exceptionOrNull())

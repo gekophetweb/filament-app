@@ -11,6 +11,9 @@ import javax.inject.Inject
 interface Pairer {
     /** Trades a pairing code for a token and signs in. Fails with IllegalArgumentException for a bad URL. */
     suspend fun pair(serverUrl: String, code: String, deviceName: String): Result<Unit>
+
+    /** Signs in with a token made on the Devices page; checks it with /me first. */
+    suspend fun useToken(serverUrl: String, token: String): Result<Unit>
 }
 
 class PairingRepository @Inject constructor(
@@ -28,6 +31,15 @@ class PairingRepository @Inject constructor(
         // Use the address the user can reach; the response's `api` may say localhost.
         session.signIn(Session(baseUrl, paired.token, paired.abilities.toSet(), paired.user.name))
         sync.sync() // A failed first sync is shown on the home screen; pairing itself succeeded.
+        return Result.success(Unit)
+    }
+
+    override suspend fun useToken(serverUrl: String, token: String): Result<Unit> {
+        val baseUrl = runCatching { ServerUrl.normalize(serverUrl) }.getOrElse { return Result.failure(it) }
+        val clean = token.trim()
+        val me = apiCall { apiProvider.withToken(baseUrl, clean).me().data }.getOrElse { return Result.failure(it) }
+        session.signIn(Session(baseUrl, clean, me.abilities.toSet(), me.name))
+        sync.sync()
         return Result.success(Unit)
     }
 }

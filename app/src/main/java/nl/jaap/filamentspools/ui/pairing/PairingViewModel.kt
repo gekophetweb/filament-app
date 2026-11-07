@@ -20,6 +20,7 @@ import javax.inject.Named
 data class PairingUiState(
     val serverUrl: String = "",
     val code: String = "",
+    val token: String = "",
     val deviceName: String = "",
     val expiresAt: Instant? = null,
     val busy: Boolean = false,
@@ -63,6 +64,7 @@ class PairingViewModel @Inject constructor(
 
     fun onServerUrl(value: String) = _state.update { it.copy(serverUrl = value, error = null) }
     fun onCode(value: String) = _state.update { it.copy(code = value, expiresAt = null, error = null) }
+    fun onToken(value: String) = _state.update { it.copy(token = value, error = null) }
     fun onDeviceName(value: String) = _state.update { it.copy(deviceName = value) }
 
     fun submit() {
@@ -90,12 +92,31 @@ class PairingViewModel @Inject constructor(
         return if (local && typed.isNotBlank()) typed else fromQr
     }
 
+    /** Signs in with a token from the Devices page instead of a pairing code. */
+    fun submitToken() {
+        val s = _state.value
+        if (s.busy) return
+        if (s.serverUrl.isBlank() || s.token.isBlank()) {
+            _state.update { it.copy(error = MISSING_TOKEN) }
+            return
+        }
+        _state.update { it.copy(busy = true, error = null) }
+        viewModelScope.launch {
+            val error = pairer.useToken(s.serverUrl, s.token).exceptionOrNull()?.let {
+                if (it == ApiError.Unauthorized) BAD_TOKEN else Messages.text(it, s.serverUrl.trim())
+            }
+            _state.update { it.copy(busy = false, error = error) }
+        }
+    }
+
     private fun isExpired(expiresAt: Instant?) = expiresAt != null && expiresAt.isBefore(clock.instant())
 
     companion object {
         const val NOT_PAIRING_QR = "This QR code is not a Filament Spools pairing code"
         const val EXPIRED = "This code has expired — show a new QR on the Devices page"
         const val BAD_CODE = "Code invalid, used, expired, or the token limit (10) is reached"
+        const val BAD_TOKEN = "This token is wrong, revoked or expired"
+        const val MISSING_TOKEN = "Enter the server address and the token"
         const val MISSING = "Enter the server address and the pairing code"
     }
 }

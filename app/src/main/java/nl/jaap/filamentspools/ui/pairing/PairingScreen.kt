@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -129,8 +130,30 @@ fun PairingScreen(message: String?, vm: PairingViewModel = hiltViewModel()) {
             Button(onClick = vm::submit, enabled = !state.busy, modifier = Modifier.fillMaxWidth().height(56.dp)) {
                 if (state.busy) CircularProgressIndicator(Modifier.size(24.dp)) else Text("Connect")
             }
+            UseToken(token = state.token, busy = state.busy, onToken = vm::onToken, onSubmit = vm::submitToken)
         }
     }
+}
+
+/** Alternative to a pairing code: a token created on the Devices page. Uses the server address above. */
+@Composable
+private fun UseToken(token: String, busy: Boolean, onToken: (String) -> Unit, onSubmit: () -> Unit) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    if (!open) {
+        TextButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) { Text("Use a token instead") }
+        return
+    }
+    HorizontalDivider()
+    OutlinedTextField(
+        value = token,
+        onValueChange = onToken,
+        label = { Text("Token from the Devices page") },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        visualTransformation = PasswordVisualTransformation(),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    OutlinedButton(onClick = onSubmit, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Connect with token") }
 }
 
 @Composable

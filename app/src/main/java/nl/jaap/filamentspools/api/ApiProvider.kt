@@ -54,6 +54,16 @@ class ApiProvider @Inject constructor(private val session: SessionStore) {
         return build(baseUrl, authClient).also { cached = baseUrl to it }
     }
 
+    /** Client with a token that is not stored yet (checking a pasted token). A 401 does not sign out. */
+    fun withToken(baseUrl: String, token: String): FilamentApi = build(
+        baseUrl,
+        baseClient.newBuilder()
+            .addInterceptor(Interceptor { chain ->
+                chain.proceed(chain.request().newBuilder().header("Authorization", "Bearer $token").build())
+            })
+            .build(),
+    )
+
     /** Client without a token, for pairing. */
     fun unauthenticated(baseUrl: String): FilamentApi = build(baseUrl, baseClient)
 

@@ -28,6 +28,38 @@ class PairingViewModelTest {
             gate?.await()
             return result
         }
+
+        val tokenCalls = mutableListOf<Pair<String, String>>()
+        override suspend fun useToken(serverUrl: String, token: String): Result<Unit> {
+            tokenCalls += serverUrl to token
+            return result
+        }
+    }
+
+    @Test
+    fun submitTokenPassesFields() = runTest {
+        vm.onServerUrl("10.0.2.2:8000")
+        vm.onToken("1|abc")
+        vm.submitToken()
+        assertEquals(listOf("10.0.2.2:8000" to "1|abc"), pairer.tokenCalls)
+        assertTrue(pairer.calls.isEmpty())
+    }
+
+    @Test
+    fun badTokenShowsTokenCopy() = runTest {
+        pairer.result = Result.failure(ApiError.Unauthorized)
+        vm.onServerUrl("10.0.2.2:8000")
+        vm.onToken("nope")
+        vm.submitToken()
+        assertEquals("This token is wrong, revoked or expired", vm.state.value.error)
+    }
+
+    @Test
+    fun missingTokenBlocksSubmit() = runTest {
+        vm.onServerUrl("10.0.2.2:8000")
+        vm.submitToken()
+        assertEquals("Enter the server address and the token", vm.state.value.error)
+        assertTrue(pairer.tokenCalls.isEmpty())
     }
 
     private val pairer = FakePairer()
