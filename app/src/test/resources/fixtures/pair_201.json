@@ -1,0 +1,16 @@
+{
+  "data": {
+    "token": "7|kq3J1nVb0pXr8eLw2YtZ5aGc9hDf4sMu6iOyTlNe",
+    "token_type": "Bearer",
+    "abilities": [
+      "spools:read",
+      "spools:write"
+    ],
+    "expires_at": "2027-11-07T12:00:00+00:00",
+    "api": "http://localhost:8000/api/v1",
+    "user": {
+      "name": "Alex",
+      "email": "alex@example.com"
+    }
+  }
+}

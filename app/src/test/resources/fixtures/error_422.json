@@ -1,0 +1,8 @@
+{
+  "message": "The filament product id field is required.",
+  "errors": {
+    "filament_product_id": [
+      "The filament product id field is required."
+    ]
+  }
+}

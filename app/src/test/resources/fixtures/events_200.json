@@ -1,0 +1,29 @@
+{
+  "data": [
+    {
+      "type": "added",
+      "note": null,
+      "created_at": "2026-10-02T18:12:40+00:00"
+    },
+    {
+      "type": "opened",
+      "note": "X1C AMS slot 2",
+      "created_at": "2026-11-01T09:30:00+00:00"
+    }
+  ],
+  "links": {
+    "first": "http://localhost:8000/api/v1/spools/{uuid}/events?page=1",
+    "last": "http://localhost:8000/api/v1/spools/{uuid}/events?page=1",
+    "prev": null,
+    "next": null
+  },
+  "meta": {
+    "current_page": 1,
+    "from": 1,
+    "last_page": 1,
+    "path": "http://localhost:8000/api/v1/spools/{uuid}/events",
+    "per_page": 100,
+    "to": 2,
+    "total": 2
+  }
+}
