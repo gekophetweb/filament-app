@@ -38,4 +38,7 @@ interface SessionStore {
     suspend fun cursor(key: String): String?
     suspend fun setCursor(key: String, value: String?)
     suspend fun setLastSync(at: Instant)
+
+    /** Server address kept after sign-out, to prefill pairing. */
+    suspend fun lastServerUrl(): String?
 }

@@ -9,7 +9,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nl.jaap.filamentspools.api.ApiError
 import nl.jaap.filamentspools.data.Pairer
+import nl.jaap.filamentspools.data.session.SessionStore
 import nl.jaap.filamentspools.ui.common.Messages
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.time.Clock
 import java.time.Instant
 import javax.inject.Inject
@@ -27,12 +29,21 @@ data class PairingUiState(
 @HiltViewModel
 class PairingViewModel @Inject constructor(
     private val pairer: Pairer,
+    private val session: SessionStore,
     private val clock: Clock,
     @Named("deviceName") deviceName: String,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PairingUiState(deviceName = deviceName))
     val state: StateFlow<PairingUiState> = _state
+
+    init {
+        // After a sign-out, offer the address that worked last time.
+        viewModelScope.launch {
+            val last = session.lastServerUrl()
+            if (!last.isNullOrBlank()) _state.update { if (it.serverUrl.isBlank()) it.copy(serverUrl = last) else it }
+        }
+    }
 
     fun onScanned(text: String) {
         val payload = PairingPayloadParser.parse(text)
@@ -42,7 +53,7 @@ class PairingViewModel @Inject constructor(
         }
         _state.update {
             it.copy(
-                serverUrl = payload.api.ifBlank { it.serverUrl },
+                serverUrl = pickServerUrl(typed = it.serverUrl, fromQr = payload.api),
                 code = payload.code,
                 expiresAt = payload.expiresAt,
                 error = if (isExpired(payload.expiresAt)) EXPIRED else null,
@@ -69,6 +80,14 @@ class PairingViewModel @Inject constructor(
             }
             _state.update { it.copy(busy = false, error = error) }
         }
+    }
+
+    /** The QR's address usually says localhost (the server's own view); a phone cannot use that. */
+    private fun pickServerUrl(typed: String, fromQr: String): String {
+        if (fromQr.isBlank()) return typed
+        val host = fromQr.toHttpUrlOrNull()?.host ?: ("http://" + fromQr).toHttpUrlOrNull()?.host
+        val local = host == null || host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "[::1]"
+        return if (local && typed.isNotBlank()) typed else fromQr
     }
 
     private fun isExpired(expiresAt: Instant?) = expiresAt != null && expiresAt.isBefore(clock.instant())

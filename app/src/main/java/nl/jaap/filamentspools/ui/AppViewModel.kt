@@ -34,8 +34,10 @@ class AppViewModel @Inject constructor(
     private val productDao: ProductDao,
 ) : ViewModel() {
 
+    // `current` is read via .value: the store sets it before `loaded`, so it is never stale here.
     val state: StateFlow<AppState> =
-        combine(session.loaded, session.current, session.signOutReason) { loaded, current, reason ->
+        combine(session.loaded, session.current, session.signOutReason) { loaded, _, reason ->
+            val current = session.current.value
             when {
                 !loaded -> AppState.Loading
                 current == null ->
@@ -46,14 +48,19 @@ class AppViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            combine(session.loaded, session.current) { loaded, current -> loaded to (current != null) }
+            var wasSignedIn = false
+            combine(session.loaded, session.current) { loaded, _ -> loaded to (session.current.value != null) }
                 .filter { (loaded, _) -> loaded }
                 .map { (_, signedIn) -> signedIn }
                 .distinctUntilChanged()
                 .collect { signedIn ->
                     if (signedIn) {
-                        syncer.sync()
-                    } else {
+                        wasSignedIn = true
+                        launch { syncer.sync() }
+                    } else if (wasSignedIn) {
+                        // Only an actual sign-out clears the cache (sign-out also clears the sync cursors).
+                        // A cold start never does, so a slow session load cannot wipe the offline copy.
+                        wasSignedIn = false
                         spoolDao.clear()
                         productDao.clear()
                     }

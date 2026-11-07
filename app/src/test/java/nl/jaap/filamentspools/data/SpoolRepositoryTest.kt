@@ -32,7 +32,7 @@ class SpoolRepositoryTest {
     private val session = FakeSessionStore(
         Session(server.url("/api/v1/").toString(), "t", setOf("spools:read", "spools:write"), "Alex"),
     )
-    private val repo = SpoolRepository(ApiProvider(session), db.spoolDao(), db.productDao(), session)
+    private val repo = SpoolRepository(ApiProvider(session), db.spoolDao(), db.productDao(), session, LocalWrites())
 
     @After
     fun tearDown() {

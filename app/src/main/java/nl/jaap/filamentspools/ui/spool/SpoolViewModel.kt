@@ -67,6 +67,7 @@ private data class Local(
     val events: List<SpoolEventDto> = emptyList(),
     val eventsError: String? = null,
     val nextEventPage: Int? = 1,
+    val loadingEvents: Boolean = false,
     val busy: Boolean = false,
     val removing: Boolean = false,
     val goneMessage: String? = null,
@@ -99,7 +100,7 @@ class SpoolViewModel @Inject constructor(
                 formError = l.formError,
                 events = l.events,
                 eventsError = l.eventsError,
-                hasMoreEvents = l.nextEventPage != null && l.eventsError == null,
+                hasMoreEvents = l.nextEventPage != null && l.eventsError == null && !l.loadingEvents,
                 busy = l.busy,
                 canWrite = s != null && ABILITY_WRITE in s.abilities,
                 goneMessage = gone,
@@ -111,17 +112,20 @@ class SpoolViewModel @Inject constructor(
     }
 
     fun loadMoreEvents() {
-        val page = local.value.nextEventPage ?: return
+        val current = local.value
+        if (current.loadingEvents) return
+        val page = current.nextEventPage ?: return
+        local.update { it.copy(loadingEvents = true) }
         viewModelScope.launch {
             actions.events(uuid, page)
                 .onSuccess { p ->
                     local.update {
-                        it.copy(events = it.events + p.data, nextEventPage = if (p.links.next != null && p.data.isNotEmpty()) page + 1 else null, eventsError = null)
+                        it.copy(events = it.events + p.data, nextEventPage = if (p.links.next != null && p.data.isNotEmpty()) page + 1 else null, eventsError = null, loadingEvents = false)
                     }
                 }
                 .onFailure { e ->
                     val text = if (e is ApiError.Network) "History needs a connection to the server" else Messages.text(e, serverUrl())
-                    local.update { it.copy(eventsError = text) }
+                    local.update { it.copy(eventsError = text, loadingEvents = false) }
                 }
         }
     }

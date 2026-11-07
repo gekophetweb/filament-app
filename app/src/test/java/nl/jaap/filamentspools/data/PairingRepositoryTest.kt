@@ -28,7 +28,7 @@ class PairingRepositoryTest {
     private val provider = ApiProvider(session)
     private val sync = SyncRepository(
         provider, db.spoolDao(), db.productDao(), session,
-        CoroutineScope(SupervisorJob() + Dispatchers.IO), Clock.systemUTC(),
+        CoroutineScope(SupervisorJob() + Dispatchers.IO), Clock.systemUTC(), LocalWrites(),
     )
     private val repo = PairingRepository(provider, session, sync)
 

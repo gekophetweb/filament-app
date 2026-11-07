@@ -26,6 +26,8 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -41,9 +43,10 @@ class SyncRepositoryTest {
     private val server = MockWebServer().apply { dispatcher = routes; start() }
     private val session = FakeSessionStore(Session(server.url("/api/v1/").toString(), "t", setOf("spools:read"), "Alex"))
     private val now = Instant.parse("2026-11-07T12:00:00Z")
+    private val writes = LocalWrites()
     private val repo = SyncRepository(
         ApiProvider(session), db.spoolDao(), db.productDao(), session,
-        CoroutineScope(SupervisorJob() + Dispatchers.IO), Clock.fixed(now, ZoneOffset.UTC),
+        CoroutineScope(SupervisorJob() + Dispatchers.IO), Clock.fixed(now, ZoneOffset.UTC), writes,
     )
 
     @After
@@ -162,6 +165,72 @@ class SyncRepositoryTest {
         repo.sync()
 
         assertEquals("Product 42", db.spoolDao().observe("a").first()!!.product!!.articleName)
+    }
+
+    /** Review #2: a page fetched before a write must not overwrite that write. */
+    @Test
+    fun writeDuringSyncIsNotOverwritten() = runBlocking {
+        db.spoolDao().upsert(listOf(spool("a", 1, "boxed")))
+        session.setCursor(CURSOR_SPOOLS, "2026-11-01T00:00:00Z")
+        routes.on(
+            "GET /api/v1/spools?page=1",
+            MockResponse().setHeader("Content-Type", "application/json")
+                .setBody(page(listOf(spoolJson("a", status = "boxed"), spoolJson("gone", status = "boxed"))))
+                .setBodyDelay(500, TimeUnit.MILLISECONDS),
+        )
+        emptyCatalog()
+        routes.json("POST /api/v1/spools/a/open", """{"data":${spoolJson("a", status = "on_spool", updatedAt = "2026-11-07T12:00:00+00:00")}}""")
+        routes.on("DELETE /api/v1/spools/gone", MockResponse().setResponseCode(204))
+        val writer = SpoolRepository(ApiProvider(session), db.spoolDao(), db.productDao(), session, writes)
+
+        val sync = async(Dispatchers.IO) { repo.sync() }
+        kotlinx.coroutines.delay(150)
+        writer.open("a")
+        writer.remove("gone", null)
+        sync.await()
+
+        assertEquals("on_spool", db.spoolDao().observe("a").first()!!.spool.status)
+        assertNull(db.spoolDao().observe("gone").first())
+    }
+
+    /** Review #2, first sync: replaceAll must keep a spool added during the sync. */
+    @Test
+    fun firstSyncKeepsSpoolAddedDuringSync() = runBlocking {
+        routes.on(
+            "GET /api/v1/spools?page=1",
+            MockResponse().setHeader("Content-Type", "application/json")
+                .setBody(page(listOf(spoolJson("old")))).setBodyDelay(500, TimeUnit.MILLISECONDS),
+        )
+        emptyCatalog()
+        routes.json("POST /api/v1/spools", """{"data":${spoolJson("added")}}""", code = 201)
+        val writer = SpoolRepository(ApiProvider(session), db.spoolDao(), db.productDao(), session, writes)
+
+        val sync = async(Dispatchers.IO) { repo.sync() }
+        kotlinx.coroutines.delay(150)
+        writer.add(1, false, false, null, null, null, null)
+        sync.await()
+
+        assertNotNull(db.spoolDao().observe("added").first())
+        assertNotNull(db.spoolDao().observe("old").first())
+    }
+
+    /** Review #5: an unexpected exception is a failed sync, not a crash or a stuck spinner. */
+    @Test
+    fun unexpectedExceptionBecomesFailure() = runBlocking {
+        val broken = object : FakeSessionStore(session.current.value) {
+            override suspend fun setLastSync(at: Instant) = throw IllegalStateException("disk full")
+        }
+        val repo2 = SyncRepository(
+            ApiProvider(broken), db.spoolDao(), db.productDao(), broken,
+            CoroutineScope(SupervisorJob() + Dispatchers.IO), Clock.fixed(now, ZoneOffset.UTC), writes,
+        )
+        routes.json("GET /api/v1/spools?page=1", page(emptyList()))
+        emptyCatalog()
+
+        val result = repo2.sync()
+
+        assertTrue(result.isFailure)
+        assertFalse(repo2.state.value.running)
     }
 
     @Test

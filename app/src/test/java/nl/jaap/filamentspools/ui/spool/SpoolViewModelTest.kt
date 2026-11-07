@@ -161,6 +161,21 @@ class SpoolViewModelTest {
         assertFalse(s.hasMoreEvents)
     }
 
+    /** Review #6: "Load more" while a page is loading must not fetch that page twice. */
+    @Test
+    fun loadMoreWhileLoadingDoesNotDuplicate() = runBlocking {
+        actions.eventsGate = kotlinx.coroutines.CompletableDeferred()
+        actions.eventPages[1] = Result.success(Page(listOf(event("added")), PageLinks(next = "x")))
+        val vm = vm("boxed1")
+        assertFalse(vm.state.value.hasMoreEvents)
+        vm.loadMoreEvents()
+        vm.loadMoreEvents()
+        actions.eventsGate!!.complete(Unit)
+        vm.await { it.events.isNotEmpty() }
+        assertEquals(listOf("events:boxed1:1"), actions.calls.filter { it.startsWith("events") })
+        assertEquals(1, vm.state.value.events.size)
+    }
+
     @Test
     fun eventsOfflineShowsMessage() = runBlocking {
         actions.eventPages[1] = Result.failure(ApiError.Network(IOException("down")))

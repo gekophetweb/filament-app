@@ -74,6 +74,36 @@ class SessionStoreTest {
         }
     }
 
+    /** Review #1: once `loaded` is true, `current` must already hold the stored session. */
+    @Test
+    fun loadedImpliesSessionDecrypted() = runBlocking {
+        withStore { it.signIn(session) }
+        val slowCipher = object : TokenCipher {
+            override fun encrypt(plain: String) = cipher.encrypt(plain)
+            override fun decrypt(cipher: String): String {
+                Thread.sleep(200)
+                return this@SessionStoreTest.cipher.decrypt(cipher)
+            }
+        }
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val store = DataStoreSessionStore(disk, slowCipher, scope)
+            withTimeout(5_000) { store.loaded.first { it } }
+            assertEquals(session, store.current.value)
+        } finally {
+            scope.coroutineContext[Job]!!.cancelAndJoin()
+        }
+    }
+
+    @Test
+    fun lastServerUrlSurvivesSignOut() = runBlocking {
+        withStore { store ->
+            store.signIn(session)
+            store.signOut(SignOutReason.User)
+            assertEquals("http://10.0.2.2:8000/api/v1/", store.lastServerUrl())
+        }
+    }
+
     @Test
     fun lastSyncPersists() = runBlocking {
         val at = Instant.parse("2026-11-07T10:00:00Z")

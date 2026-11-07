@@ -15,6 +15,9 @@ open class FakeSessionStore(initial: Session? = null) : SessionStore {
     override val lastSync = MutableStateFlow<Instant?>(null)
     val cursors = mutableMapOf<String, String>()
     val signOuts = mutableListOf<SignOutReason>()
+    var lastUrl: String? = null
+
+    override suspend fun lastServerUrl(): String? = lastUrl ?: state.value?.baseUrl
 
     override suspend fun signIn(session: Session) {
         state.value = session

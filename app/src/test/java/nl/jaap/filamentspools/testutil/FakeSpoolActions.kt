@@ -16,6 +16,7 @@ class FakeSpoolActions : SpoolActions {
     var lastChanges: SpoolChanges? = null
     var lastAdd: List<Any?>? = null
     var eventPages: MutableMap<Int, Result<Page<SpoolEventDto>>> = mutableMapOf()
+    var eventsGate: CompletableDeferred<Unit>? = null
 
     private suspend fun record(call: String): Result<Unit> {
         calls += call
@@ -44,6 +45,7 @@ class FakeSpoolActions : SpoolActions {
 
     override suspend fun events(uuid: String, page: Int): Result<Page<SpoolEventDto>> {
         calls += "events:$uuid:$page"
+        eventsGate?.await()
         return eventPages[page] ?: Result.success(Page(emptyList()))
     }
 }

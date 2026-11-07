@@ -4,6 +4,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.test.runTest
 import nl.jaap.filamentspools.api.ApiError
 import nl.jaap.filamentspools.data.Pairer
+import nl.jaap.filamentspools.testutil.FakeSessionStore
 import nl.jaap.filamentspools.testutil.MainDispatcherRule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,7 +32,31 @@ class PairingViewModelTest {
 
     private val pairer = FakePairer()
     private val clock = Clock.fixed(Instant.parse("2026-11-07T12:00:00Z"), ZoneOffset.UTC)
-    private val vm = PairingViewModel(pairer, clock, "Pixel 8")
+    private val session = FakeSessionStore()
+    private val vm by lazy { PairingViewModel(pairer, session, clock, "Pixel 8") }
+
+    /** Review #8: the QR's `api` says localhost, which the phone cannot reach; keep what the user typed. */
+    @Test
+    fun scanLocalhostKeepsTypedAddress() {
+        vm.onServerUrl("192.168.1.20:8000")
+        vm.onScanned(qr("2026-11-07T12:10:00+00:00"))
+        assertEquals("192.168.1.20:8000", vm.state.value.serverUrl)
+        assertEquals("ABC", vm.state.value.code)
+    }
+
+    @Test
+    fun scanNonLocalAddressReplacesField() {
+        vm.onServerUrl("192.168.1.20:8000")
+        vm.onScanned("""{"type":"filament-spools-pairing","api":"https://spools.example.com/api/v1","code":"ABC"}""")
+        assertEquals("https://spools.example.com/api/v1", vm.state.value.serverUrl)
+    }
+
+    @Test
+    fun prefillsLastServerUrl() {
+        session.lastUrl = "http://192.168.1.20:8000/api/v1/"
+        val fresh = PairingViewModel(pairer, session, clock, "Pixel 8")
+        assertEquals("http://192.168.1.20:8000/api/v1/", fresh.state.value.serverUrl)
+    }
 
     private fun qr(expires: String) =
         """{"type":"filament-spools-pairing","api":"http://localhost:8000/api/v1","code":"ABC","expires_at":"$expires"}"""

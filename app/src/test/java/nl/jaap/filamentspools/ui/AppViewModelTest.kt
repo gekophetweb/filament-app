@@ -68,6 +68,20 @@ class AppViewModelTest {
         Unit
     }
 
+    /** Review #1: `loaded` may turn true a moment before `current` is decrypted. */
+    @Test
+    fun coldStartRaceDoesNotClearCache() = runBlocking {
+        db.productDao().upsert(listOf(product(1)))
+        db.spoolDao().upsert(listOf(spool("a", 1)))
+        val session = FakeSessionStore() // loaded = true, current = null for a moment
+        vm(session)
+        session.state.value = signedIn
+
+        kotlinx.coroutines.delay(300)
+        assertEquals(1, db.spoolDao().observeForProduct(1).first().size)
+        assertEquals(1, syncer.calls)
+    }
+
     @Test
     fun userSignOutShowsNoMessage() = runBlocking {
         val session = FakeSessionStore(signedIn)

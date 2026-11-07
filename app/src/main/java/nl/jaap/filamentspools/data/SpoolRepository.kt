@@ -67,6 +67,7 @@ class SpoolRepository @Inject constructor(
     private val spoolDao: SpoolDao,
     private val productDao: ProductDao,
     private val session: SessionStore,
+    private val writes: LocalWrites,
 ) : SpoolActions {
     override suspend fun open(uuid: String, note: String?): Result<Unit> =
         write(uuid) { apiProvider.api().openSpool(uuid, NoteRequest(note)).data }.map { }
@@ -104,7 +105,10 @@ class SpoolRepository @Inject constructor(
             val response = apiProvider.api().deleteSpool(uuid, NoteRequest(note))
             if (!response.isSuccessful) throw HttpException(response)
         }
-        return handle(uuid, result).onSuccess { spoolDao.deleteByUuids(listOf(uuid)) }
+        return handle(uuid, result).onSuccess {
+            writes.record(uuid)
+            spoolDao.deleteByUuids(listOf(uuid))
+        }
     }
 
     override suspend fun events(uuid: String, page: Int): Result<Page<SpoolEventDto>> =
@@ -117,6 +121,7 @@ class SpoolRepository @Inject constructor(
         handle(uuid, apiCall { call() }).onSuccess { store(it) }
 
     private suspend fun store(spool: SpoolDto) {
+        writes.record(spool.uuid) // before the Room write, so a sync applying now skips this spool
         productDao.insertIgnore(listOf(spool.product.toEntity()))
         spoolDao.upsert(listOf(spool.toEntity()))
     }
@@ -124,7 +129,10 @@ class SpoolRepository @Inject constructor(
     /** Side effects of failures: a missing spool leaves the cache; a refused write refreshes abilities. */
     private suspend fun <T> handle(uuid: String?, result: Result<T>): Result<T> {
         when (result.exceptionOrNull()) {
-            ApiError.NotFound -> if (uuid != null) spoolDao.deleteByUuids(listOf(uuid))
+            ApiError.NotFound -> if (uuid != null) {
+                writes.record(uuid)
+                spoolDao.deleteByUuids(listOf(uuid))
+            }
             ApiError.MissingAbility -> refreshAbilities()
             else -> Unit
         }

@@ -87,9 +87,14 @@ interface SpoolDao {
     @Query("DELETE FROM spools")
     suspend fun clear()
 
+    @Query("SELECT uuid FROM spools")
+    suspend fun allUuids(): List<String>
+
+    /** Makes the table equal to [spools], except rows in [keep], which are left as they are. */
     @Transaction
-    suspend fun replaceAll(spools: List<SpoolEntity>) {
-        clear()
+    suspend fun replaceAll(spools: List<SpoolEntity>, keep: Collection<String> = emptyList()) {
+        val wanted = spools.mapTo(HashSet()) { it.uuid } + keep
+        allUuids().filter { it !in wanted }.chunked(500).forEach { deleteByUuids(it) }
         upsert(spools)
     }
 

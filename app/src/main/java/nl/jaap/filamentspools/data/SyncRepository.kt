@@ -1,5 +1,6 @@
 package nl.jaap.filamentspools.data
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -49,6 +50,7 @@ class SyncRepository @Inject constructor(
     private val session: SessionStore,
     @AppScope private val scope: CoroutineScope,
     private val clock: Clock,
+    private val writes: LocalWrites,
 ) : Syncer {
     private val _state = MutableStateFlow(SyncState())
     override val state: StateFlow<SyncState> = _state
@@ -66,26 +68,38 @@ class SyncRepository @Inject constructor(
 
     private suspend fun runSync(): Result<Unit> {
         _state.update { it.copy(running = true) }
-        val result = syncSpools().fold(onSuccess = { syncCatalog() }, onFailure = { Result.failure(it) })
-        if (result.isSuccess) session.setLastSync(clock.instant())
-        _state.value = SyncState(running = false, lastError = result.exceptionOrNull() as? ApiError)
+        // Spools written by this app after this point win over whatever the pages say.
+        val mark = writes.mark()
+        val result = try {
+            syncSpools(mark).fold(onSuccess = { syncCatalog() }, onFailure = { Result.failure(it) })
+                .onSuccess { session.setLastSync(clock.instant()) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        } finally {
+            writes.forgetUpTo(mark)
+        }
+        _state.value = SyncState(running = false, lastError = result.exceptionOrNull() as? ApiError ?: result.exceptionOrNull()?.let { ApiError.Http(-1) })
         return result
     }
 
-    private suspend fun syncSpools(): Result<Unit> {
+    private suspend fun syncSpools(mark: Long): Result<Unit> {
         val cursor = session.cursor(CURSOR_SPOOLS)
-        val rows = fetchAll(cursor) { page, since -> apiProvider.api().spools(PER_PAGE, page, since) }
+        val fetched = fetchAll(cursor) { page, since -> apiProvider.api().spools(PER_PAGE, page, since) }
             .getOrElse { return Result.failure(it) }
 
+        val touched = writes.writtenSince(mark)
+        val rows = fetched.filter { it.uuid !in touched }
         productDao.insertIgnore(rows.map { it.product.toEntity() }.distinctBy { it.id })
         val (removed, live) = rows.partition { it.deletedAt != null }
         if (cursor == null) {
-            spoolDao.replaceAll(live.map { it.toEntity() })
+            spoolDao.replaceAll(live.map { it.toEntity() }, keep = touched)
         } else {
             spoolDao.upsert(live.map { it.toEntity() })
             if (removed.isNotEmpty()) spoolDao.deleteByUuids(removed.map { it.uuid })
         }
-        advanceCursor(CURSOR_SPOOLS, rows.map { it.updatedAt })
+        advanceCursor(CURSOR_SPOOLS, fetched.map { it.updatedAt })
         return Result.success(Unit)
     }
 
