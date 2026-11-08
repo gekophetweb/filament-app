@@ -21,7 +21,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.math.BigDecimal
 import java.time.LocalDate
 
 @RunWith(RobolectricTestRunner::class)
@@ -64,43 +63,55 @@ class ProductViewModelTest {
     }
 
     @Test
-    fun invalidPriceBlocksSave() = runBlocking {
+    fun amountOutOfRangeBlocksSave() = runBlocking {
         val vm = vm(1)
         vm.loaded()
-        vm.onForm(AddSpoolForm(price = "abc"))
-        vm.save()
+        for (bad in listOf("0", "51", "abc", "")) {
+            vm.onForm(AddSpoolForm(amount = bad))
+            vm.save()
+            assertEquals("Enter 1 to 50", vm.state.value.fieldErrors["amount"])
+        }
         assertTrue(actions.calls.isEmpty())
-        assertEquals("Enter a number", vm.state.value.fieldErrors["price"])
     }
 
     @Test
     fun validFormSendsValues() = runBlocking {
         val vm = vm(1)
         vm.loaded()
-        vm.onForm(AddSpoolForm(onSpool = true, isRefill = true, purchasedAt = "2026-10-02", price = "24,99", location = " Shelf A ", notes = ""))
+        vm.onForm(AddSpoolForm(amount = " 3 ", onSpool = true, isRefill = true, purchasedAt = "2026-10-02"))
         vm.save()
-        assertEquals(listOf(1L, true, true, LocalDate.of(2026, 10, 2), BigDecimal("24.99"), "Shelf A", null), actions.lastAdd)
+        assertEquals(listOf(1L, 3, true, true, LocalDate.of(2026, 10, 2)), actions.lastAdd)
     }
 
     @Test
     fun serverValidationMapsToFields() = runBlocking {
-        actions.addResult = Result.failure(ApiError.Validation("Too long.", mapOf("location" to listOf("Too long."))))
+        actions.addResult = Result.failure(ApiError.Validation("Too many.", mapOf("amount" to listOf("Too many."))))
         val vm = vm(1)
         vm.loaded()
-        vm.onForm(AddSpoolForm(location = "x".repeat(300)))
+        vm.onForm(AddSpoolForm(amount = "50"))
         vm.save()
         val s = withTimeout(5_000) { vm.state.first { !it.saving } }
-        assertEquals("Too long.", s.fieldErrors["location"])
+        assertEquals("Too many.", s.fieldErrors["amount"])
     }
 
     @Test
     fun successResetsForm() = runBlocking {
         val vm = vm(1)
         vm.loaded()
-        vm.onForm(AddSpoolForm(location = "Shelf A"))
+        vm.onForm(AddSpoolForm(purchasedAt = "2026-10-02"))
         vm.save()
         assertEquals("Spool added", withTimeout(5_000) { vm.messages.first() })
         assertEquals(AddSpoolForm(), vm.state.value.form)
+    }
+
+    @Test
+    fun severalAddedMessage() = runBlocking {
+        actions.addResult = Result.success(listOf("a", "b", "c"))
+        val vm = vm(1)
+        vm.loaded()
+        vm.onForm(AddSpoolForm(amount = "3"))
+        vm.save()
+        assertEquals("3 spools added", withTimeout(5_000) { vm.messages.first() })
     }
 
     @Test

@@ -45,7 +45,7 @@ private val ownedLabels = mapOf(
     OwnedFilter.Owned to "Owned",
     OwnedFilter.NotOwned to "Not owned",
     OwnedFilter.Boxed to "Boxed",
-    OwnedFilter.OnSpool to "On holder",
+    OwnedFilter.OnSpool to "On spool",
     OwnedFilter.RunningOut to "Running out",
 )
 

@@ -33,7 +33,6 @@ class DtoParsingTest {
         val spool = page.data.single()
         assertEquals("9d3c6f1e-4b7a-4c2e-9f1d-2a8b5e7c0d43", spool.uuid)
         assertEquals("on_spool", spool.status)
-        assertEquals("24.99", spool.price)
         assertEquals("#FFFFFF", spool.product.colorHex)
         assertNull(spool.deletedAt)
         assertNull(page.links.next)
@@ -64,8 +63,15 @@ class DtoParsingTest {
 
     @Test
     fun createRequestSerializesSnakeCase() {
-        val body = ApiJson.encodeToString(CreateSpoolRequest(1, "boxed", false, null, null, null, null))
+        val body = ApiJson.encodeToString(CreateSpoolRequest(1, 3, "boxed", false, null))
         assertTrue(body, body.contains("\"filament_product_id\":1"))
-        assertFalse(body, body.contains("\"price\""))
+        assertTrue(body, body.contains("\"amount\":3"))
+        assertFalse(body, body.contains("\"purchased_at\""))
+    }
+
+    @Test
+    fun createSeveralParses() {
+        val spools = ApiJson.decodeFromString<Envelope<List<SpoolDto>>>(fixture("create_201_several.json")).data
+        assertEquals(2, spools.size)
     }
 }

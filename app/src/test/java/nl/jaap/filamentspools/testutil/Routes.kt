@@ -40,8 +40,8 @@ fun spoolJson(
     status: String = "boxed",
     updatedAt: String = "2026-11-01T09:30:00+00:00",
     deletedAt: String? = null,
-    location: String? = "Shelf A",
+    purchasedAt: String? = "2026-10-02",
 ) = """{"uuid":"$uuid","product":${productJson(productId)},"status":"$status","is_refill":false,
-       "purchased_at":"2026-10-02","price":"24.99","location":${location?.let { "\"$it\"" } ?: "null"},"notes":null,
+       "purchased_at":${purchasedAt?.let { "\"$it\"" } ?: "null"},
        "created_at":"2026-10-02T18:12:40+00:00","updated_at":"$updatedAt",
        "deleted_at":${deletedAt?.let { "\"$it\"" } ?: "null"}}"""

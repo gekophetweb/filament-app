@@ -202,12 +202,12 @@ class SyncRepositoryTest {
                 .setBody(page(listOf(spoolJson("old")))).setBodyDelay(500, TimeUnit.MILLISECONDS),
         )
         emptyCatalog()
-        routes.json("POST /api/v1/spools", """{"data":${spoolJson("added")}}""", code = 201)
+        routes.json("POST /api/v1/spools", """{"data":[${spoolJson("added")}]}""", code = 201)
         val writer = SpoolRepository(ApiProvider(session), db.spoolDao(), db.productDao(), session, writes)
 
         val sync = async(Dispatchers.IO) { repo.sync() }
         kotlinx.coroutines.delay(150)
-        writer.add(1, false, false, null, null, null, null)
+        writer.add(1, 1, false, false, null)
         sync.await()
 
         assertNotNull(db.spoolDao().observe("added").first())

@@ -89,7 +89,7 @@ fun PrinterScreen(onOpenSpool: (String) -> Unit, vm: PrinterViewModel = hiltView
                 }
                 state.syncError?.let { item { Banner("Sync failed: $it") } }
 
-                section("On the holder", state.onHolder, empty = "Nothing on the holder") { row ->
+                section("On spool", state.onHolder, empty = "Nothing on spool") { row ->
                     SpoolCard(row, onClick = { onOpenSpool(row.spool.uuid) }) {
                         if (state.canWrite) {
                             OutlinedButton(onClick = { confirmUseUp = row }, enabled = row.spool.uuid !in state.busyUuids) {
@@ -171,7 +171,6 @@ fun SpoolCard(row: SpoolWithProduct, onClick: () -> Unit, actions: @Composable (
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                row.spool.location?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
             actions()
         }
@@ -186,7 +185,7 @@ private fun RunningOutCard(p: ProductWithCounts, onBuy: (() -> Unit)?) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(p.product.articleName, style = MaterialTheme.typography.titleSmall)
-                Text("${p.onSpool} on the holder, none boxed", style = MaterialTheme.typography.bodySmall)
+                Text("${p.onSpool} on spool, none boxed", style = MaterialTheme.typography.bodySmall)
             }
             if (onBuy != null) FilledTonalButton(onClick = onBuy) { Text("Buy") }
         }

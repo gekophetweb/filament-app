@@ -18,7 +18,6 @@ import nl.jaap.filamentspools.data.db.SpoolStatus
 import nl.jaap.filamentspools.data.db.toEntity
 import nl.jaap.filamentspools.data.session.SessionStore
 import retrofit2.HttpException
-import java.math.BigDecimal
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -32,18 +31,12 @@ sealed interface Change<out T> {
 data class SpoolChanges(
     val isRefill: Change<Boolean> = Change.Unchanged,
     val purchasedAt: Change<LocalDate> = Change.Unchanged,
-    val price: Change<BigDecimal> = Change.Unchanged,
-    val location: Change<String> = Change.Unchanged,
-    val notes: Change<String> = Change.Unchanged,
 ) {
     val isEmpty: Boolean get() = toJson().isEmpty()
 
     fun toJson(): JsonObject = buildJsonObject {
         (isRefill as? Change.Set)?.let { put("is_refill", it.value?.let(::JsonPrimitive) ?: JsonNull) }
         (purchasedAt as? Change.Set)?.let { put("purchased_at", it.value?.toString()?.let(::JsonPrimitive) ?: JsonNull) }
-        (price as? Change.Set)?.let { put("price", it.value?.let(::JsonPrimitive) ?: JsonNull) }
-        (location as? Change.Set)?.let { put("location", it.value?.let(::JsonPrimitive) ?: JsonNull) }
-        (notes as? Change.Set)?.let { put("notes", it.value?.let(::JsonPrimitive) ?: JsonNull) }
     }
 }
 
@@ -51,10 +44,10 @@ data class SpoolChanges(
 interface SpoolActions {
     suspend fun open(uuid: String, note: String? = null): Result<Unit>
     suspend fun useUp(uuid: String, note: String? = null): Result<Unit>
+    /** Adds [amount] identical spools (1 to 50); returns their uuids. */
     suspend fun add(
-        productId: Long, onSpool: Boolean, isRefill: Boolean, purchasedAt: LocalDate?,
-        price: BigDecimal?, location: String?, notes: String?,
-    ): Result<String>
+        productId: Long, amount: Int, onSpool: Boolean, isRefill: Boolean, purchasedAt: LocalDate?,
+    ): Result<List<String>>
     suspend fun update(uuid: String, changes: SpoolChanges): Result<Unit>
     suspend fun remove(uuid: String, note: String?): Result<Unit>
     suspend fun events(uuid: String, page: Int): Result<Page<SpoolEventDto>>
@@ -77,25 +70,24 @@ class SpoolRepository @Inject constructor(
 
     override suspend fun add(
         productId: Long,
+        amount: Int,
         onSpool: Boolean,
         isRefill: Boolean,
         purchasedAt: LocalDate?,
-        price: BigDecimal?,
-        location: String?,
-        notes: String?,
-    ): Result<String> = write(uuid = null) {
-        apiProvider.api().createSpool(
-            CreateSpoolRequest(
-                filamentProductId = productId,
-                status = if (onSpool) SpoolStatus.ON_SPOOL else SpoolStatus.BOXED,
-                isRefill = isRefill,
-                purchasedAt = purchasedAt?.toString(),
-                price = price?.toDouble(),
-                location = location,
-                notes = notes,
-            ),
-        ).data
-    }.map { it.uuid }
+    ): Result<List<String>> {
+        val result = apiCall {
+            apiProvider.api().createSpool(
+                CreateSpoolRequest(
+                    filamentProductId = productId,
+                    amount = amount,
+                    status = if (onSpool) SpoolStatus.ON_SPOOL else SpoolStatus.BOXED,
+                    isRefill = isRefill,
+                    purchasedAt = purchasedAt?.toString(),
+                ),
+            ).data
+        }
+        return handle(uuid = null, result).onSuccess { spools -> spools.forEach { store(it) } }.map { list -> list.map { it.uuid } }
+    }
 
     override suspend fun update(uuid: String, changes: SpoolChanges): Result<Unit> =
         write(uuid) { apiProvider.api().patchSpool(uuid, changes.toJson()).data }.map { }

@@ -28,16 +28,11 @@ import nl.jaap.filamentspools.data.session.ABILITY_WRITE
 import nl.jaap.filamentspools.data.session.SessionStore
 import nl.jaap.filamentspools.ui.common.Messages
 import nl.jaap.filamentspools.ui.common.parseDateField
-import nl.jaap.filamentspools.ui.common.parsePriceField
-import java.math.BigDecimal
 import javax.inject.Inject
 
 data class EditForm(
     val isRefill: Boolean = false,
     val purchasedAt: String = "",
-    val price: String = "",
-    val location: String = "",
-    val notes: String = "",
 )
 
 data class SpoolUiState(
@@ -144,16 +139,14 @@ class SpoolViewModel @Inject constructor(
         val cached = state.value.spool?.spool ?: return
         if (local.value.busy) return
         val date = parseDateField(form.purchasedAt)
-        val price = parsePriceField(form.price)
         val errors = buildMap {
             if (date.isFailure) put("purchased_at", "Use YYYY-MM-DD")
-            if (price.isFailure) put("price", "Enter a number")
         }
         if (errors.isNotEmpty()) {
             local.update { it.copy(fieldErrors = errors) }
             return
         }
-        val changes = diff(cached, form, date.getOrNull(), price.getOrNull())
+        val changes = diff(cached, form, date.getOrNull())
         if (changes.isEmpty) {
             cancelEdit()
             return
@@ -169,7 +162,7 @@ class SpoolViewModel @Inject constructor(
         }
     }
 
-    fun open() = act("Put on the holder") { actions.open(uuid) }
+    fun open() = act("Put on spool") { actions.open(uuid) }
 
     fun useUp() = act("Marked used up") { actions.useUp(uuid) }
 
@@ -217,24 +210,10 @@ class SpoolViewModel @Inject constructor(
 private fun SpoolEntity.toForm() = EditForm(
     isRefill = isRefill,
     purchasedAt = purchasedAt.orEmpty(),
-    price = price.orEmpty(),
-    location = location.orEmpty(),
-    notes = notes.orEmpty(),
 )
 
-/** Only fields that differ from the cached spool; prices compare by value (24.99 == 24,990). */
-private fun diff(cached: SpoolEntity, form: EditForm, date: java.time.LocalDate?, price: BigDecimal?): SpoolChanges {
-    fun text(value: String) = value.trim().ifBlank { null }
-    val cachedPrice = cached.price?.toBigDecimalOrNull()
-    val priceChanged = when {
-        price == null || cachedPrice == null -> price != cachedPrice
-        else -> price.compareTo(cachedPrice) != 0
-    }
-    return SpoolChanges(
-        isRefill = if (form.isRefill != cached.isRefill) Change.Set(form.isRefill) else Change.Unchanged,
-        purchasedAt = if (date?.toString() != cached.purchasedAt) Change.Set(date) else Change.Unchanged,
-        price = if (priceChanged) Change.Set(price) else Change.Unchanged,
-        location = if (text(form.location) != cached.location) Change.Set(text(form.location)) else Change.Unchanged,
-        notes = if (text(form.notes) != cached.notes) Change.Set(text(form.notes)) else Change.Unchanged,
-    )
-}
+/** Only fields that differ from the cached spool. */
+private fun diff(cached: SpoolEntity, form: EditForm, date: java.time.LocalDate?): SpoolChanges = SpoolChanges(
+    isRefill = if (form.isRefill != cached.isRefill) Change.Set(form.isRefill) else Change.Unchanged,
+    purchasedAt = if (date?.toString() != cached.purchasedAt) Change.Set(date) else Change.Unchanged,
+)

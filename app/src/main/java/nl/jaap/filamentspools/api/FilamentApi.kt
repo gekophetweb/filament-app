@@ -37,7 +37,7 @@ interface FilamentApi {
     suspend fun spool(@Path("uuid") uuid: String): Envelope<SpoolDto>
 
     @POST("spools")
-    suspend fun createSpool(@Body body: CreateSpoolRequest): Envelope<SpoolDto>
+    suspend fun createSpool(@Body body: CreateSpoolRequest): Envelope<List<SpoolDto>>
 
     @PATCH("spools/{uuid}")
     suspend fun patchSpool(@Path("uuid") uuid: String, @Body body: JsonObject): Envelope<SpoolDto>
