@@ -107,10 +107,7 @@ fun SpoolScreen(onBack: () -> Unit, vm: SpoolViewModel = hiltViewModel()) {
                 EditSection(edit, state, vm)
             } else {
                 Detail("Refill", if (s.isRefill) "Yes" else "No")
-                Detail("Location", s.location ?: "—")
                 Detail("Purchased", s.purchasedAt ?: "—")
-                Detail("Price", s.price ?: "—")
-                Detail("Notes", s.notes ?: "—")
             }
 
             if (edit == null && (state.canOpen || state.canUseUp || state.canRemove)) {
@@ -166,9 +163,6 @@ private fun EditSection(edit: EditForm, state: SpoolUiState, vm: SpoolViewModel)
     FormField("Purchase date (YYYY-MM-DD)", edit.purchasedAt, state.fieldErrors["purchased_at"], KeyboardType.Number) {
         vm.onEdit(edit.copy(purchasedAt = it))
     }
-    FormField("Price", edit.price, state.fieldErrors["price"], KeyboardType.Decimal) { vm.onEdit(edit.copy(price = it)) }
-    FormField("Location", edit.location, state.fieldErrors["location"]) { vm.onEdit(edit.copy(location = it)) }
-    FormField("Notes", edit.notes, state.fieldErrors["notes"], singleLine = false) { vm.onEdit(edit.copy(notes = it)) }
     state.formError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = vm::saveEdit, enabled = !state.busy) { Text("Save") }

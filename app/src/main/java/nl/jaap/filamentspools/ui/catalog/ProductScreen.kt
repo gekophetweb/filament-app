@@ -42,6 +42,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import nl.jaap.filamentspools.api.MAX_SPOOLS_PER_ADD
 import nl.jaap.filamentspools.ui.common.Swatch
 import nl.jaap.filamentspools.ui.common.statusLabel
 import nl.jaap.filamentspools.ui.printer.SpoolCard
@@ -88,7 +89,7 @@ fun ProductScreen(onBack: () -> Unit, onOpenSpool: (String) -> Unit, vm: Product
                     )
                 }
             }
-            Text("${row.boxed} boxed · ${row.onSpool} on the holder · ${row.owned} owned")
+            Text("${row.boxed} boxed · ${row.onSpool} on spool · ${row.owned} owned")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 p.buyUrl?.let { url -> OutlinedButton(onClick = { uri.openUri(url) }) { Text("Buy") } }
                 p.productUrl?.let { url -> OutlinedButton(onClick = { uri.openUri(url) }) { Text("Product page") } }
@@ -115,12 +116,15 @@ fun ProductScreen(onBack: () -> Unit, onOpenSpool: (String) -> Unit, vm: Product
 private fun AddSpoolSection(state: ProductUiState, vm: ProductViewModel) {
     val f = state.form
     Text("Add spool", style = MaterialTheme.typography.titleMedium)
+    FormField("Number of spools (1 to $MAX_SPOOLS_PER_ADD)", f.amount, state.fieldErrors["amount"], KeyboardType.Number) {
+        vm.onForm(f.copy(amount = it))
+    }
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
         SegmentedButton(selected = !f.onSpool, onClick = { vm.onForm(f.copy(onSpool = false)) }, shape = SegmentedButtonDefaults.itemShape(0, 2)) {
             Text("Boxed")
         }
         SegmentedButton(selected = f.onSpool, onClick = { vm.onForm(f.copy(onSpool = true)) }, shape = SegmentedButtonDefaults.itemShape(1, 2)) {
-            Text("On the holder")
+            Text("On spool")
         }
     }
     if (state.showRefill) {
@@ -132,14 +136,11 @@ private fun AddSpoolSection(state: ProductUiState, vm: ProductViewModel) {
     FormField("Purchase date (YYYY-MM-DD)", f.purchasedAt, state.fieldErrors["purchased_at"], KeyboardType.Number) {
         vm.onForm(f.copy(purchasedAt = it))
     }
-    FormField("Price", f.price, state.fieldErrors["price"], KeyboardType.Decimal) { vm.onForm(f.copy(price = it)) }
-    FormField("Location", f.location, state.fieldErrors["location"]) { vm.onForm(f.copy(location = it)) }
-    FormField("Notes", f.notes, state.fieldErrors["notes"], singleLine = false) { vm.onForm(f.copy(notes = it)) }
     (state.formError ?: state.fieldErrors["filament_product_id"] ?: state.fieldErrors["status"])?.let {
         Text(it, color = MaterialTheme.colorScheme.error)
     }
     Button(onClick = vm::save, enabled = !state.saving, modifier = Modifier.fillMaxWidth()) {
-        if (state.saving) CircularProgressIndicator(Modifier.padding(2.dp)) else Text("Add spool")
+        if (state.saving) CircularProgressIndicator(Modifier.padding(2.dp)) else Text(if (f.amount.trim() == "1") "Add spool" else "Add spools")
     }
 }
 

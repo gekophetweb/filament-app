@@ -21,7 +21,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.math.BigDecimal
 import java.time.LocalDate
 
 @RunWith(RobolectricTestRunner::class)
@@ -94,41 +93,54 @@ class SpoolRepositoryTest {
 
     @Test
     fun patchSendsOnlyChangedFields() = runBlocking {
-        routes.json("PATCH /api/v1/spools/u1", """{"data":${spoolJson("u1", location = "Shelf B")}}""")
+        routes.json("PATCH /api/v1/spools/u1", """{"data":${spoolJson("u1", purchasedAt = null)}}""")
 
-        repo.update("u1", SpoolChanges(location = Change.Set("Shelf B"), notes = Change.Set(null)))
+        repo.update("u1", SpoolChanges(purchasedAt = Change.Set(null)))
 
-        assertEquals(Json.parseToJsonElement("""{"location":"Shelf B","notes":null}"""), body("PATCH", "/api/v1/spools/u1"))
-        assertEquals("Shelf B", db.spoolDao().observe("u1").first()!!.spool.location)
+        assertEquals(Json.parseToJsonElement("""{"purchased_at":null}"""), body("PATCH", "/api/v1/spools/u1"))
+        assertEquals(null, db.spoolDao().observe("u1").first()!!.spool.purchasedAt)
     }
 
     @Test
-    fun patchFormatsDatesAndPrices() = runBlocking {
+    fun patchFormatsDates() = runBlocking {
         routes.json("PATCH /api/v1/spools/u1", """{"data":${spoolJson("u1")}}""")
 
-        repo.update(
-            "u1",
-            SpoolChanges(isRefill = Change.Set(true), purchasedAt = Change.Set(LocalDate.of(2026, 10, 2)), price = Change.Set(BigDecimal("19.50"))),
-        )
+        repo.update("u1", SpoolChanges(isRefill = Change.Set(true), purchasedAt = Change.Set(LocalDate.of(2026, 10, 2))))
 
         assertEquals(
-            Json.parseToJsonElement("""{"is_refill":true,"purchased_at":"2026-10-02","price":19.5}"""),
+            Json.parseToJsonElement("""{"is_refill":true,"purchased_at":"2026-10-02"}"""),
             body("PATCH", "/api/v1/spools/u1"),
         )
     }
 
     @Test
-    fun addSendsSnakeCaseAndStatus() = runBlocking {
-        routes.json("POST /api/v1/spools", """{"data":${spoolJson("new1", status = "on_spool")}}""", code = 201)
+    fun addSendsAmountAndStoresEverySpool() = runBlocking {
+        routes.json(
+            "POST /api/v1/spools",
+            """{"data":[${spoolJson("new1", status = "on_spool")},${spoolJson("new2", status = "on_spool")}]}""",
+            code = 201,
+        )
 
-        val uuid = repo.add(1, onSpool = true, isRefill = false, purchasedAt = null, price = BigDecimal("24.99"), location = "Shelf A", notes = null)
+        val uuids = repo.add(1, amount = 2, onSpool = true, isRefill = false, purchasedAt = LocalDate.of(2026, 11, 8))
 
-        assertEquals("new1", uuid.getOrThrow())
+        assertEquals(listOf("new1", "new2"), uuids.getOrThrow())
         assertEquals(
-            Json.parseToJsonElement("""{"filament_product_id":1,"status":"on_spool","is_refill":false,"price":24.99,"location":"Shelf A"}"""),
+            Json.parseToJsonElement("""{"filament_product_id":1,"amount":2,"status":"on_spool","is_refill":false,"purchased_at":"2026-11-08"}"""),
             body("POST", "/api/v1/spools"),
         )
         assertEquals("on_spool", db.spoolDao().observe("new1").first()!!.spool.status)
+        assertEquals("on_spool", db.spoolDao().observe("new2").first()!!.spool.status)
+    }
+
+    @Test
+    fun addOneStillSendsAmount() = runBlocking {
+        routes.json("POST /api/v1/spools", """{"data":[${spoolJson("new1")}]}""", code = 201)
+
+        assertEquals(listOf("new1"), repo.add(1, amount = 1, onSpool = false, isRefill = false, purchasedAt = null).getOrThrow())
+        assertEquals(
+            Json.parseToJsonElement("""{"filament_product_id":1,"amount":1,"status":"boxed","is_refill":false}"""),
+            body("POST", "/api/v1/spools"),
+        )
     }
 
     @Test

@@ -45,6 +45,20 @@ class SpoolDaoTest {
     }
 
     @Test
+    fun sortedByProductCode() = runTest {
+        products.upsert(listOf(product(1, number = "13912"), product(2, number = "10100"), product(3, number = "11500")))
+        spools.upsert(
+            listOf(
+                spool("c", 1, updatedAt = "2026-11-03T00:00:00+00:00"),
+                spool("a", 2, updatedAt = "2026-10-01T00:00:00+00:00"),
+                spool("b", 3, updatedAt = "2026-11-05T00:00:00+00:00"),
+                spool("unknown", 999),
+            ),
+        )
+        assertEquals(listOf("a", "b", "c", "unknown"), spools.observeByStatus("boxed", "").first().map { it.spool.uuid })
+    }
+
+    @Test
     fun spoolWithUnknownProductIsStored() = runTest {
         spools.upsert(listOf(spool("x", 999)))
         val row = spools.observe("x").first()!!

@@ -96,7 +96,7 @@ class PrinterViewModel @Inject constructor(
         viewModelScope.launch { syncer.sync() }
     }
 
-    fun open(uuid: String) = act(uuid, "Put on the holder") { actions.open(uuid) }
+    fun open(uuid: String) = act(uuid, "Put on spool") { actions.open(uuid) }
 
     /** Called after the screen's confirm dialog. */
     fun useUp(uuid: String) = act(uuid, "Marked used up") { actions.useUp(uuid) }

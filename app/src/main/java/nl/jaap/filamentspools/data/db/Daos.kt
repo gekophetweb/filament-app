@@ -102,7 +102,7 @@ interface SpoolDao {
     @Query(
         """SELECT s.* FROM spools s LEFT JOIN products p ON p.id = s.productId
         WHERE s.status = :status AND """ + PRODUCT_SEARCH + """
-        ORDER BY s.updatedAt DESC""",
+        ORDER BY p.articleNumber IS NULL, p.articleNumber, s.updatedAt DESC""",
     )
     fun observeByStatusRaw(status: String, q: String): Flow<List<SpoolWithProduct>>
 

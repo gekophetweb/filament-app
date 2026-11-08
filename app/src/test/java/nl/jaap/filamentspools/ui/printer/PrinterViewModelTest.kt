@@ -91,7 +91,7 @@ class PrinterViewModelTest {
         vm.awaitState { "b1" in it.busyUuids }
         actions.gate!!.complete(Unit)
         vm.awaitState { "b1" !in it.busyUuids }
-        assertEquals("Put on the holder", withTimeout(5_000) { vm.messages.first() })
+        assertEquals("Put on spool", withTimeout(5_000) { vm.messages.first() })
     }
 
     @Test

@@ -57,9 +57,6 @@ data class SpoolDto(
     val status: String,
     @SerialName("is_refill") val isRefill: Boolean = false,
     @SerialName("purchased_at") val purchasedAt: String? = null,
-    val price: String? = null,
-    val location: String? = null,
-    val notes: String? = null,
     @SerialName("created_at") val createdAt: String,
     @SerialName("updated_at") val updatedAt: String,
     @SerialName("deleted_at") val deletedAt: String? = null,
@@ -101,13 +98,14 @@ data class PairRequest(
 @Serializable
 data class NoteRequest(val note: String? = null)
 
+/** `amount` is always sent, so the response is always a list (the API returns a single spool without it). */
 @Serializable
 data class CreateSpoolRequest(
     @SerialName("filament_product_id") val filamentProductId: Long,
+    val amount: Int,
     val status: String,
     @SerialName("is_refill") val isRefill: Boolean,
     @SerialName("purchased_at") val purchasedAt: String? = null,
-    val price: Double? = null,
-    val location: String? = null,
-    val notes: String? = null,
 )
+
+const val MAX_SPOOLS_PER_ADD = 50

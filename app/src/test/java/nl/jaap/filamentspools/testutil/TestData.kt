@@ -32,8 +32,8 @@ fun spool(
     productId: Long,
     status: String = "boxed",
     updatedAt: String = "2026-11-01T09:30:00+00:00",
-    location: String? = "Shelf A",
+    purchasedAt: String? = "2026-10-02",
 ) = SpoolEntity(
-    uuid = uuid, productId = productId, status = status, isRefill = false, purchasedAt = "2026-10-02",
-    price = "24.99", location = location, notes = null, createdAt = "2026-10-02T18:12:40+00:00", updatedAt = updatedAt,
+    uuid = uuid, productId = productId, status = status, isRefill = false, purchasedAt = purchasedAt,
+    createdAt = "2026-10-02T18:12:40+00:00", updatedAt = updatedAt,
 )

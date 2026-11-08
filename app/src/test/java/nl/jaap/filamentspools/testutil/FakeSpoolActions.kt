@@ -5,13 +5,12 @@ import nl.jaap.filamentspools.api.Page
 import nl.jaap.filamentspools.api.SpoolEventDto
 import nl.jaap.filamentspools.data.SpoolActions
 import nl.jaap.filamentspools.data.SpoolChanges
-import java.math.BigDecimal
 import java.time.LocalDate
 
 class FakeSpoolActions : SpoolActions {
     val calls = mutableListOf<String>()
     var result: Result<Unit> = Result.success(Unit)
-    var addResult: Result<String> = Result.success("new-uuid")
+    var addResult: Result<List<String>> = Result.success(listOf("new-uuid"))
     var gate: CompletableDeferred<Unit>? = null
     var lastChanges: SpoolChanges? = null
     var lastAdd: List<Any?>? = null
@@ -34,11 +33,10 @@ class FakeSpoolActions : SpoolActions {
     }
 
     override suspend fun add(
-        productId: Long, onSpool: Boolean, isRefill: Boolean, purchasedAt: LocalDate?,
-        price: BigDecimal?, location: String?, notes: String?,
-    ): Result<String> {
+        productId: Long, amount: Int, onSpool: Boolean, isRefill: Boolean, purchasedAt: LocalDate?,
+    ): Result<List<String>> {
         calls += "add:$productId"
-        lastAdd = listOf(productId, onSpool, isRefill, purchasedAt, price, location, notes)
+        lastAdd = listOf(productId, amount, onSpool, isRefill, purchasedAt)
         gate?.await()
         return addResult
     }

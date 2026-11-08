@@ -35,9 +35,6 @@ data class SpoolEntity(
     val status: String,
     val isRefill: Boolean,
     val purchasedAt: String?,
-    val price: String?,
-    val location: String?,
-    val notes: String?,
     val createdAt: String,
     val updatedAt: String,
 )
@@ -75,5 +72,5 @@ fun ProductDto.toEntity() = ProductEntity(
 
 fun SpoolDto.toEntity() = SpoolEntity(
     uuid = uuid, productId = product.id, status = status, isRefill = isRefill, purchasedAt = purchasedAt,
-    price = price, location = location, notes = notes, createdAt = createdAt, updatedAt = updatedAt,
+    createdAt = createdAt, updatedAt = updatedAt,
 )

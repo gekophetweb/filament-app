@@ -22,6 +22,7 @@ import nl.jaap.filamentspools.data.SpoolRepository
 import nl.jaap.filamentspools.data.SyncRepository
 import nl.jaap.filamentspools.data.Syncer
 import nl.jaap.filamentspools.data.db.AppDatabase
+import nl.jaap.filamentspools.data.db.MIGRATION_1_2
 import nl.jaap.filamentspools.data.db.ProductDao
 import nl.jaap.filamentspools.data.db.SpoolDao
 import nl.jaap.filamentspools.data.session.DataStoreSessionStore
@@ -41,7 +42,9 @@ object AppModule {
 
     @Provides @Singleton
     fun database(@ApplicationContext context: Context): AppDatabase =
-        Room.databaseBuilder(context, AppDatabase::class.java, "filament-spools.db").build()
+        Room.databaseBuilder(context, AppDatabase::class.java, "filament-spools.db")
+            .addMigrations(MIGRATION_1_2)
+            .build()
 
     @Provides fun spoolDao(db: AppDatabase): SpoolDao = db.spoolDao()
 

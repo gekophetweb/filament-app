@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import nl.jaap.filamentspools.api.ApiError
+import nl.jaap.filamentspools.api.MAX_SPOOLS_PER_ADD
 import nl.jaap.filamentspools.data.SpoolActions
 import nl.jaap.filamentspools.data.db.ProductDao
 import nl.jaap.filamentspools.data.db.ProductWithCounts
@@ -24,16 +25,13 @@ import nl.jaap.filamentspools.data.session.ABILITY_WRITE
 import nl.jaap.filamentspools.data.session.SessionStore
 import nl.jaap.filamentspools.ui.common.Messages
 import nl.jaap.filamentspools.ui.common.parseDateField
-import nl.jaap.filamentspools.ui.common.parsePriceField
 import javax.inject.Inject
 
 data class AddSpoolForm(
+    val amount: String = "1",
     val onSpool: Boolean = false,
     val isRefill: Boolean = false,
     val purchasedAt: String = "",
-    val price: String = "",
-    val location: String = "",
-    val notes: String = "",
 )
 
 data class ProductUiState(
@@ -90,10 +88,10 @@ class ProductViewModel @Inject constructor(
         if (e.saving) return
         val f = e.form
         val date = parseDateField(f.purchasedAt)
-        val price = parsePriceField(f.price)
+        val amount = f.amount.trim().toIntOrNull()?.takeIf { it in 1..MAX_SPOOLS_PER_ADD }
         val errors = buildMap {
+            if (amount == null) put("amount", "Enter 1 to $MAX_SPOOLS_PER_ADD")
             if (date.isFailure) put("purchased_at", "Use YYYY-MM-DD")
-            if (price.isFailure) put("price", "Enter a number")
         }
         if (errors.isNotEmpty()) {
             edit.update { it.copy(fieldErrors = errors) }
@@ -104,16 +102,14 @@ class ProductViewModel @Inject constructor(
         viewModelScope.launch {
             val result = actions.add(
                 productId = productId,
+                amount = amount!!,
                 onSpool = f.onSpool,
                 isRefill = refill,
                 purchasedAt = date.getOrNull(),
-                price = price.getOrNull(),
-                location = f.location.trim().ifBlank { null },
-                notes = f.notes.trim().ifBlank { null },
             )
-            result.onSuccess {
+            result.onSuccess { uuids ->
                 edit.value = Edit()
-                _messages.send("Spool added")
+                _messages.send(if (uuids.size == 1) "Spool added" else "${uuids.size} spools added")
             }.onFailure { error ->
                 val fields = (error as? ApiError.Validation)?.fields.orEmpty()
                     .mapValues { (_, v) -> v.firstOrNull().orEmpty() }

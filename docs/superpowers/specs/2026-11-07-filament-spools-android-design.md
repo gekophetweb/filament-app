@@ -171,3 +171,13 @@ with fakes and repositories with MockWebServer + in-memory Room.
   offline banner, 401 → pairing.
 - **Manual end-to-end** on the emulator against the local server at `10.0.2.2:8000`:
   pair → sync → open → used up → add → edit → remove → offline (stop the server).
+
+## 11. Update 2026-11-08
+
+- The API dropped `price`, `location` and `notes` from spools (create, PATCH and every response). The app no longer
+  shows or edits them; the cache drops the columns (Room version 2, migration keeps cached spools).
+- `POST /spools` takes `amount` (1 to 50) to add several identical spools in one call. The app always sends it, so the
+  response is always a list; the Add spool form has a "Number of spools" field.
+- New event types `weighed` and `used` are labelled in the history.
+- Wording: "On the holder" is now "On spool" everywhere in the app.
+- Spool lists on the Printer screen are sorted by product code (article number).

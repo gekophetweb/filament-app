@@ -28,7 +28,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.IOException
-import java.math.BigDecimal
 
 @RunWith(RobolectricTestRunner::class)
 class SpoolViewModelTest {
@@ -40,7 +39,7 @@ class SpoolViewModelTest {
     @Before
     fun seed() = runBlocking {
         db.productDao().upsert(listOf(product(1)))
-        db.spoolDao().upsert(listOf(spool("boxed1", 1, "boxed", location = "Shelf A"), spool("done1", 1, "used_up")))
+        db.spoolDao().upsert(listOf(spool("boxed1", 1, "boxed"), spool("done1", 1, "used_up")))
     }
 
     @After
@@ -57,31 +56,20 @@ class SpoolViewModelTest {
         val vm = vm("boxed1")
         vm.await { it.spool != null }
         vm.startEdit()
-        vm.onEdit(vm.state.value.editing!!.copy(location = "Shelf B"))
+        vm.onEdit(vm.state.value.editing!!.copy(isRefill = true))
         vm.saveEdit()
-        assertEquals(SpoolChanges(location = Change.Set("Shelf B")), actions.lastChanges)
+        assertEquals(SpoolChanges(isRefill = Change.Set(true)), actions.lastChanges)
     }
 
     @Test
-    fun equalPriceIsNotAChange() = runBlocking {
+    fun clearedDateIsSent() = runBlocking {
         val vm = vm("boxed1")
         vm.await { it.spool != null }
         vm.startEdit()
-        assertEquals("24.99", vm.state.value.editing!!.price)
-        vm.onEdit(vm.state.value.editing!!.copy(price = "24,990", notes = "  "))
+        assertEquals("2026-10-02", vm.state.value.editing!!.purchasedAt)
+        vm.onEdit(vm.state.value.editing!!.copy(purchasedAt = ""))
         vm.saveEdit()
-        assertTrue(actions.calls.none { it.startsWith("update") })
-        assertNull(vm.state.value.editing)
-    }
-
-    @Test
-    fun priceChangeIsSent() = runBlocking {
-        val vm = vm("boxed1")
-        vm.await { it.spool != null }
-        vm.startEdit()
-        vm.onEdit(vm.state.value.editing!!.copy(price = "19.5", purchasedAt = ""))
-        vm.saveEdit()
-        assertEquals(SpoolChanges(purchasedAt = Change.Set(null), price = Change.Set(BigDecimal("19.5"))), actions.lastChanges)
+        assertEquals(SpoolChanges(purchasedAt = Change.Set(null)), actions.lastChanges)
     }
 
     @Test
